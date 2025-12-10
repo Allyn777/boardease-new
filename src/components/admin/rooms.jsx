@@ -46,6 +46,10 @@ export default function Rooms() {
     ? (parseFloat(roomForm.price_monthly) / parseInt(roomForm.capacity)).toFixed(2)
     : 0;
 
+  const electricPerHead = roomForm.capacity && roomForm.base_electric_rate
+    ? (parseFloat(roomForm.base_electric_rate) / parseInt(roomForm.capacity)).toFixed(2)
+    : 0;
+
   useEffect(() => {
     fetchRooms();
   }, []);
@@ -88,9 +92,9 @@ export default function Rooms() {
             bed_type: roomForm.bed_type,
             capacity: parseInt(roomForm.capacity),
             price_monthly: parseFloat(roomForm.price_monthly),
-            price_per_head: parseFloat(pricePerHead), // Auto-calculated
+            price_per_head: parseFloat(pricePerHead),
             base_electric_rate: parseFloat(roomForm.base_electric_rate),
-            status: "Available", // Always default to Available
+            status: "Available",
             created_by: user?.id,
           },
         ])
@@ -173,75 +177,82 @@ export default function Rooms() {
             columns={["Room No.", "Bed Type", "Capacity", "Rent/Month", "Electric/Month", "Price/Head", "Status"]}
             rows={rooms}
             emptyLabel="No rooms added yet. Click 'Add New Room' to get started!"
-            renderRow={(room) => (
-              <div key={room.id}>
-                {/* Mobile Card View */}
-                <div className="md:hidden border-t border-gray-100 p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-gray-900">Room {room.room_number}</p>
-                      <p className="text-sm text-gray-600">{room.bed_type}</p>
-                      <p className="text-sm text-gray-600">Capacity: {room.capacity} {room.capacity > 1 ? 'persons' : 'person'}</p>
+            renderRow={(room) => {
+              const rentPerHead = room.capacity > 0 ? (room.price_monthly / room.capacity).toFixed(2) : 0;
+              const electricPerHead = room.capacity > 0 ? ((room.base_electric_rate || 0) / room.capacity).toFixed(2) : 0;
+              
+              return (
+                <div key={room.id}>
+                  {/* Mobile Card View */}
+                  <div className="md:hidden border-t border-gray-100 p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold text-gray-900">Room {room.room_number}</p>
+                        <p className="text-sm text-gray-600">{room.bed_type}</p>
+                        <p className="text-sm text-gray-600">Capacity: {room.capacity} {room.capacity > 1 ? 'persons' : 'person'}</p>
+                      </div>
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                          room.status === "Available"
+                            ? "bg-green-100 text-green-700"
+                            : room.status === "Occupied"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {room.status}
+                      </span>
                     </div>
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-                        room.status === "Available"
-                          ? "bg-green-100 text-green-700"
-                          : room.status === "Occupied"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {room.status}
-                    </span>
-                  </div>
-                  <p className="font-semibold text-green-600">₱{room.price_monthly.toLocaleString()}/mo</p>
-                  <p className="text-sm text-yellow-600">⚡ ₱{room.base_electric_rate?.toLocaleString() || 0}/mo</p>
-                  {room.price_per_head > 0 && (
-                    <p className="text-sm text-blue-600">₱{room.price_per_head.toLocaleString()}/head</p>
-                  )}
-                  <button
-                    onClick={() => handleDeleteRoom(room.id)}
-                    className="text-sm font-semibold text-red-600 hover:text-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-
-                {/* Desktop Table Row */}
-                <div className="hidden md:grid md:grid-cols-7 px-4 py-3 text-sm text-gray-800 border-t border-gray-100">
-                  <span className="font-semibold">Room {room.room_number}</span>
-                  <span>{room.bed_type}</span>
-                  <span>{room.capacity} {room.capacity > 1 ? 'persons' : 'person'}</span>
-                  <span className="font-semibold text-green-600">₱{room.price_monthly.toLocaleString()}</span>
-                  <span className="font-semibold text-yellow-600">₱{room.base_electric_rate?.toLocaleString() || 0}</span>
-                  <span className={room.price_per_head > 0 ? "font-semibold text-blue-600" : "text-gray-400"}>
-                    {room.price_per_head > 0 ? `₱${room.price_per_head.toLocaleString()}` : 'N/A'}
-                  </span>
-
-                  <div className="flex gap-2 items-center">
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs font-semibold w-fit ${
-                        room.status === "Available"
-                          ? "bg-green-100 text-green-700"
-                          : room.status === "Occupied"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {room.status}
-                    </span>
-
+                    <p className="font-semibold text-green-600">₱{room.price_monthly.toLocaleString()}/mo</p>
+                    <p className="text-sm text-yellow-600">⚡ ₱{room.base_electric_rate?.toLocaleString() || 0}/mo</p>
+                    <div className="bg-blue-50 rounded p-2 mt-2">
+                      <p className="text-xs text-blue-600 font-semibold">Per Person:</p>
+                      <p className="text-sm text-blue-700">Rent: ₱{rentPerHead} • Electric: ₱{electricPerHead}</p>
+                    </div>
                     <button
                       onClick={() => handleDeleteRoom(room.id)}
-                      className="text-sm font-semibold text-red-600 hover:text-red-800 ml-auto"
+                      className="text-sm font-semibold text-red-600 hover:text-red-800"
                     >
                       Delete
                     </button>
                   </div>
+
+                  {/* Desktop Table Row */}
+                  <div className="hidden md:grid md:grid-cols-7 px-4 py-3 text-sm text-gray-800 border-t border-gray-100">
+                    <span className="font-semibold">Room {room.room_number}</span>
+                    <span>{room.bed_type}</span>
+                    <span>{room.capacity} {room.capacity > 1 ? 'persons' : 'person'}</span>
+                    <span className="font-semibold text-green-600">₱{room.price_monthly.toLocaleString()}</span>
+                    <span className="font-semibold text-yellow-600">₱{room.base_electric_rate?.toLocaleString() || 0}</span>
+                    <div>
+                      <p className="text-xs text-gray-500">Rent: ₱{rentPerHead}</p>
+                      <p className="text-xs text-gray-500">⚡: ₱{electricPerHead}</p>
+                    </div>
+
+                    <div className="flex gap-2 items-center">
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-semibold w-fit ${
+                          room.status === "Available"
+                            ? "bg-green-100 text-green-700"
+                            : room.status === "Occupied"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {room.status}
+                      </span>
+
+                      <button
+                        onClick={() => handleDeleteRoom(room.id)}
+                        className="text-sm font-semibold text-red-600 hover:text-red-800 ml-auto"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            }}
           />
         )}
       </div>
@@ -332,12 +343,29 @@ export default function Rooms() {
             </div>
 
             {/* Auto-calculated Price Per Head Display */}
-            {roomForm.capacity && roomForm.price_monthly && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <label className="text-xs sm:text-sm font-semibold text-blue-700">Price per Head (Auto-calculated)</label>
-                <p className="text-lg font-bold text-blue-600 mt-1">₱{parseFloat(pricePerHead).toLocaleString()}/person</p>
-                <p className="text-xs text-blue-600 mt-1">
-                  ₱{parseFloat(roomForm.price_monthly).toLocaleString()} ÷ {roomForm.capacity} {roomForm.capacity > 1 ? 'people' : 'person'}
+            {roomForm.capacity && roomForm.price_monthly && roomForm.base_electric_rate && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                <label className="text-xs sm:text-sm font-semibold text-blue-700 mb-2 block">💰 Cost per Person</label>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-blue-600">Rent per head:</span>
+                    <span className="font-bold text-blue-700">₱{parseFloat(pricePerHead).toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span className="text-yellow-600">⚡ Electric per head:</span>
+                    <span className="font-bold text-yellow-700">₱{parseFloat(electricPerHead).toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="border-t border-blue-300 pt-2 flex justify-between">
+                    <span className="font-bold text-blue-800">Total per person:</span>
+                    <span className="font-bold text-blue-800 text-lg">₱{(parseFloat(pricePerHead) + parseFloat(electricPerHead)).toFixed(2)}</span>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-blue-600 mt-2">
+                  💡 Each tenant will pay ₱{(parseFloat(pricePerHead) + parseFloat(electricPerHead)).toFixed(2)}/month (excluding rice cooker if applicable)
                 </p>
               </div>
             )}
