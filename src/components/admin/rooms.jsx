@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/authcontext";
-import { supabase, uploadRoomImages, deleteRoomImage } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 const ManagementTable = ({
   columns,
@@ -10,7 +10,7 @@ const ManagementTable = ({
 }) => (
   <div className="mt-4 rounded-xl border border-gray-200 overflow-hidden">
     {/* Desktop Table Header */}
-    <div className="hidden md:grid md:grid-cols-6 bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-700">
+    <div className="hidden md:grid md:grid-cols-7 bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-700">
       {columns.map((column) => (
         <span key={column}>{column}</span>
       ))}
@@ -30,7 +30,6 @@ export default function Rooms() {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
-  const [uploadingImages, setUploadingImages] = useState(false);
 
   const { user } = useAuth();
 
@@ -39,12 +38,13 @@ export default function Rooms() {
     bed_type: "Single Bed",
     capacity: "",
     price_monthly: "",
-    price_per_head: "",
-    description: "",
-    status: "Available",
+    base_electric_rate: "",
   });
 
-  const [selectedImages, setSelectedImages] = useState([]);
+  // Calculate price per head automatically
+  const pricePerHead = roomForm.capacity && roomForm.price_monthly 
+    ? (parseFloat(roomForm.price_monthly) / parseInt(roomForm.capacity)).toFixed(2)
+    : 0;
 
   useEffect(() => {
     fetchRooms();
@@ -69,33 +69,16 @@ export default function Rooms() {
     }
   };
 
-  const handleImageSelect = (e) => {
-    const files = Array.from(e.target.files);
-
-    if (files.length > 5) {
-      alert("Maximum 5 images allowed");
-      return;
-    }
-
-    setSelectedImages(files);
-  };
-
   const handleCreateRoom = async (e) => {
     e.preventDefault();
 
-    if (!roomForm.room_number || !roomForm.capacity || !roomForm.price_monthly) {
+    if (!roomForm.room_number || !roomForm.capacity || !roomForm.price_monthly || !roomForm.base_electric_rate) {
       alert("Please fill in all required fields");
       return;
     }
 
     try {
       setLoading(true);
-      setUploadingImages(true);
-
-      let imageUrls = [];
-      if (selectedImages.length > 0) {
-        imageUrls = await uploadRoomImages(selectedImages, roomForm.room_number);
-      }
 
       const { data, error } = await supabase
         .from("rooms")
@@ -105,10 +88,9 @@ export default function Rooms() {
             bed_type: roomForm.bed_type,
             capacity: parseInt(roomForm.capacity),
             price_monthly: parseFloat(roomForm.price_monthly),
-            price_per_head: parseFloat(roomForm.price_per_head) || 0,
-            description: roomForm.description,
-            status: roomForm.status,
-            image_urls: JSON.stringify(imageUrls),
+            price_per_head: parseFloat(pricePerHead), // Auto-calculated
+            base_electric_rate: parseFloat(roomForm.base_electric_rate),
+            status: "Available", // Always default to Available
             created_by: user?.id,
           },
         ])
@@ -123,34 +105,24 @@ export default function Rooms() {
         bed_type: "Single Bed",
         capacity: "",
         price_monthly: "",
-        price_per_head: "",
-        description: "",
-        status: "Available",
+        base_electric_rate: "",
       });
 
-      setSelectedImages([]);
       setShowAddRoom(false);
-
       fetchRooms();
     } catch (error) {
       console.error("Error creating room:", error);
       alert("Error creating room: " + error.message);
     } finally {
-      setUploadingImages(false);
       setLoading(false);
     }
   };
 
-  const handleDeleteRoom = async (roomId, imageUrls) => {
+  const handleDeleteRoom = async (roomId) => {
     if (!confirm("Are you sure you want to delete this room?")) return;
 
     try {
       setLoading(true);
-
-      if (imageUrls) {
-        const urls = JSON.parse(imageUrls);
-        await Promise.all(urls.map((url) => deleteRoomImage(url)));
-      }
 
       const { error } = await supabase.from("rooms").delete().eq("id", roomId);
 
@@ -198,7 +170,7 @@ export default function Rooms() {
           </div>
         ) : (
           <ManagementTable
-            columns={["Room No.", "Bed Type", "Capacity", "Price/Month", "Price/Head", "Status"]}
+            columns={["Room No.", "Bed Type", "Capacity", "Rent/Month", "Electric/Month", "Price/Head", "Status"]}
             rows={rooms}
             emptyLabel="No rooms added yet. Click 'Add New Room' to get started!"
             renderRow={(room) => (
@@ -224,11 +196,12 @@ export default function Rooms() {
                     </span>
                   </div>
                   <p className="font-semibold text-green-600">₱{room.price_monthly.toLocaleString()}/mo</p>
+                  <p className="text-sm text-yellow-600">⚡ ₱{room.base_electric_rate?.toLocaleString() || 0}/mo</p>
                   {room.price_per_head > 0 && (
                     <p className="text-sm text-blue-600">₱{room.price_per_head.toLocaleString()}/head</p>
                   )}
                   <button
-                    onClick={() => handleDeleteRoom(room.id, room.image_urls)}
+                    onClick={() => handleDeleteRoom(room.id)}
                     className="text-sm font-semibold text-red-600 hover:text-red-800"
                   >
                     Delete
@@ -236,11 +209,12 @@ export default function Rooms() {
                 </div>
 
                 {/* Desktop Table Row */}
-                <div className="hidden md:grid md:grid-cols-6 px-4 py-3 text-sm text-gray-800 border-t border-gray-100">
+                <div className="hidden md:grid md:grid-cols-7 px-4 py-3 text-sm text-gray-800 border-t border-gray-100">
                   <span className="font-semibold">Room {room.room_number}</span>
                   <span>{room.bed_type}</span>
                   <span>{room.capacity} {room.capacity > 1 ? 'persons' : 'person'}</span>
                   <span className="font-semibold text-green-600">₱{room.price_monthly.toLocaleString()}</span>
+                  <span className="font-semibold text-yellow-600">₱{room.base_electric_rate?.toLocaleString() || 0}</span>
                   <span className={room.price_per_head > 0 ? "font-semibold text-blue-600" : "text-gray-400"}>
                     {room.price_per_head > 0 ? `₱${room.price_per_head.toLocaleString()}` : 'N/A'}
                   </span>
@@ -259,7 +233,7 @@ export default function Rooms() {
                     </span>
 
                     <button
-                      onClick={() => handleDeleteRoom(room.id, room.image_urls)}
+                      onClick={() => handleDeleteRoom(room.id)}
                       className="text-sm font-semibold text-red-600 hover:text-red-800 ml-auto"
                     >
                       Delete
@@ -343,58 +317,30 @@ export default function Rooms() {
             </div>
 
             <div>
-              <label className="text-xs sm:text-sm font-semibold text-gray-700">Price per Head (PHP) - Optional</label>
+              <label className="text-xs sm:text-sm font-semibold text-gray-700">Base Electric Rate (PHP/Month) *</label>
               <input
                 type="number"
-                value={roomForm.price_per_head}
-                onChange={(e) => setRoomForm({ ...roomForm, price_per_head: e.target.value })}
+                required
+                value={roomForm.base_electric_rate}
+                onChange={(e) => setRoomForm({ ...roomForm, base_electric_rate: e.target.value })}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="e.g., 1500 (for bed spacers)"
+                placeholder="e.g., 500"
                 min="0"
                 step="0.01"
               />
-              <p className="text-xs text-gray-500 mt-1">For bed spacers or shared room pricing</p>
+              <p className="text-xs text-gray-500 mt-1">Fixed monthly electric cost for this room</p>
             </div>
 
-            <div>
-              <label className="text-xs sm:text-sm font-semibold text-gray-700">Status</label>
-              <select
-                value={roomForm.status}
-                onChange={(e) => setRoomForm({ ...roomForm, status: e.target.value })}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="Available">Available</option>
-                <option value="Occupied">Occupied</option>
-                <option value="Maintenance">Maintenance</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs sm:text-sm font-semibold text-gray-700">Images (Max 5)</label>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-              {selectedImages.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {selectedImages.length} image(s) selected
+            {/* Auto-calculated Price Per Head Display */}
+            {roomForm.capacity && roomForm.price_monthly && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <label className="text-xs sm:text-sm font-semibold text-blue-700">Price per Head (Auto-calculated)</label>
+                <p className="text-lg font-bold text-blue-600 mt-1">₱{parseFloat(pricePerHead).toLocaleString()}/person</p>
+                <p className="text-xs text-blue-600 mt-1">
+                  ₱{parseFloat(roomForm.price_monthly).toLocaleString()} ÷ {roomForm.capacity} {roomForm.capacity > 1 ? 'people' : 'person'}
                 </p>
-              )}
-            </div>
-
-            <div>
-              <label className="text-xs sm:text-sm font-semibold text-gray-700">Description</label>
-              <textarea
-                rows={4}
-                value={roomForm.description}
-                onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                placeholder="Add room description, amenities, etc."
-              />
-            </div>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <button
@@ -408,10 +354,10 @@ export default function Rooms() {
 
               <button
                 type="submit"
-                disabled={loading || uploadingImages}
+                disabled={loading}
                 className="w-full sm:w-auto rounded-md bg-[#051A2C] px-6 py-2 text-sm font-semibold text-white shadow hover:bg-[#031121] disabled:opacity-50 order-1 sm:order-2"
               >
-                {uploadingImages ? "Uploading..." : loading ? "Creating..." : "Create Room"}
+                {loading ? "Creating..." : "Create Room"}
               </button>
             </div>
           </form>
