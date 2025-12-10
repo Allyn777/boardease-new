@@ -1,440 +1,370 @@
-// payment.jsx - Connected to Profile Bookings
+// /src/components/payment.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
-import {
-  Elements,
-  CardElement,
-  useStripe,
-  useElements
-} from '@stripe/react-stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/authcontext';
 import Header from './header';
 import Footer from './footer';
 
-const stripePromise = loadStripe('pk_test_51SWqewRomjPRW2fxOGnbEUiKmeSj82OqH1vqMrvpNxDfGAVYvJm4uaABWPj0TBdX2lYMEfLHajV2UJ9HslWft9cd00UILNvo6b');
+// Initialize Stripe - Replace with your actual publishable key
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YOUR_KEY');
 
-// PAYMENT FORM COMPONENT
-const PaymentForm = ({ userInfo, bookingData, onShowConfirmation, onError }) => {
+// Payment Form Component
+const PaymentForm = ({ payment, clientSecret }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const navigate = useNavigate();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState('Ready to process payment');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!stripe || !elements) {
-      setError('Stripe has not loaded yet. Please wait.');
-      return;
-    }
+    if (!stripe || !elements) return;
 
     setProcessing(true);
     setError(null);
-    setDebugInfo('Step 1: Creating payment method...');
 
     try {
-      const cardElement = elements.getElement(CardElement);
+      console.log('🔵 Starting payment confirmation...');
+      console.log('🔵 Payment ID:', payment.id);
       
-      const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: cardElement,
-        billing_details: {
-          name: userInfo.fullName,
-          email: userInfo.email,
-          phone: userInfo.phoneNumber,
+      const returnUrl = `${window.location.origin}/payment-success/${payment.id}`;
+      console.log('🔵 Return URL:', returnUrl);
+
+      const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: returnUrl,
+          payment_method_data: {
+            billing_details: {
+              name: payment.tenants?.tenant_name || '',
+              phone: payment.tenants?.profiles?.phone || '',
+            }
+          }
         },
+        redirect: 'if_required'
       });
 
-      if (stripeError) {
-        setError(stripeError.message);
-        setDebugInfo('❌ Failed at creating payment method');
+      if (confirmError) {
+        console.error('❌ Payment confirmation error:', confirmError);
+        setError(confirmError.message);
         setProcessing(false);
-        return;
+      } else if (paymentIntent) {
+        console.log('✅ Payment succeeded:', paymentIntent.id);
+        navigate(`/payment-success/${payment.id}?payment_intent=${paymentIntent.id}&redirect_status=succeeded`);
       }
-
-      setDebugInfo('Step 2: Contacting payment server...');
-
-      const requestData = {
-        paymentMethodId: paymentMethod.id,
-        amount: bookingData?.amount || 5000,
-        currency: 'php',
-        customerInfo: {
-          name: userInfo.fullName,
-          email: userInfo.email,
-          phone: userInfo.phoneNumber,
-        },
-        bookingInfo: bookingData,
-      };
-
-      // ✅ CHANGED: Use Vercel serverless function instead of localhost
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || 'Server error';
-        } catch {
-          errorMessage = `Server error (${response.status})`;
-        }
-        
-        setError(errorMessage);
-        setDebugInfo(`❌ Server error: ${errorMessage}`);
-        setProcessing(false);
-        return;
-      }
-
-      setDebugInfo('Step 3: Processing response...');
-      const paymentResult = await response.json();
-
-      if (paymentResult.error) {
-        setError(paymentResult.error);
-        setDebugInfo('❌ Payment failed: ' + paymentResult.error);
-        setProcessing(false);
-        return;
-      }
-
-      if (paymentResult.requiresAction) {
-        setDebugInfo('Step 4: Completing 3D Secure authentication...');
-        
-        const { error: confirmError } = await stripe.confirmCardPayment(
-          paymentResult.clientSecret
-        );
-
-        if (confirmError) {
-          setError(confirmError.message);
-          setDebugInfo('❌ 3D Secure failed');
-          setProcessing(false);
-          return;
-        }
-      }
-
-      setDebugInfo('✅ Payment successful!');
-      onShowConfirmation(paymentResult.paymentIntentId, paymentResult);
-      
     } catch (err) {
-      const errorMessage = err.message || 'An unexpected error occurred';
-      setError(errorMessage);
-      setDebugInfo(`❌ Error: ${errorMessage}`);
-      onError(errorMessage);
-    } finally {
+      console.error('❌ Payment error:', err);
+      setError('Payment failed. Please try again.');
       setProcessing(false);
     }
   };
 
-  const cardElementOptions = {
-    style: {
-      base: {
-        fontSize: '16px',
-        color: '#424770',
-        '::placeholder': { color: '#aab7c4' },
-      },
-      invalid: { color: '#9e2146' },
-    },
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className={`p-4 rounded-lg border-2 ${
-        debugInfo.includes('✅') ? 'bg-green-100 border-green-400 text-green-800' :
-        debugInfo.includes('❌') ? 'bg-red-100 border-red-400 text-red-800' :
-        'bg-blue-100 border-blue-400 text-blue-800'
-      }`}>
-        <p className="font-semibold text-sm">Status:</p>
-        <p className="text-sm">{debugInfo}</p>
-      </div>
+    <div className="max-w-md mx-auto">
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="mb-6 text-center">
+          <h2 className="text-2xl font-bold text-gray-900">Secure Payment</h2>
+          <p className="text-gray-600 mt-2">Complete your rent payment</p>
+        </div>
 
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-white font-semibold mb-3">Payment Method</h3>
-          <div className="p-4 rounded-lg border-2 border-white bg-white/10">
-            <p className="text-white font-semibold mb-3">Credit / Debit Card</p>
-            <div className="flex gap-3 items-center">
-              <div className="bg-white rounded p-2">
-                <div className="w-12 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-[8px]">VISA</div>
-              </div>
-              <div className="bg-white rounded p-2">
-                <div className="w-12 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-[8px]">MC</div>
-              </div>
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-600">Total Amount:</span>
+            <span className="text-xl font-bold text-black">₱{parseFloat(payment.amount).toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm mb-2">
+            <span className="text-gray-600">Room:</span>
+            <span className="font-medium">Room {payment.rooms?.room_number}</span>
+          </div>
+          {payment.electricity_reading > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-600">Electricity:</span>
+              <span className="font-medium">{payment.electricity_reading} kWh (₱{parseFloat(payment.electricity_cost || 0).toLocaleString()})</span>
             </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="border border-gray-200 rounded-lg p-4">
+            <PaymentElement 
+              options={{
+                layout: 'tabs',
+              }}
+            />
+          </div>
+          
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              type="submit"
+              disabled={!stripe || processing}
+              className="w-full bg-[#061A25] text-white py-3 px-6 rounded-lg font-bold text-lg hover:bg-[#0a2433] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {processing ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  Processing Payment...
+                </>
+              ) : (
+                `Pay ₱${parseFloat(payment.amount).toLocaleString()}`
+              )}
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              Back to Profile
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>Secure payment powered by Stripe</span>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg p-4">
-          <label className="block text-gray-700 font-semibold mb-2">Card Details</label>
-          <CardElement options={cardElementOptions} />
-          <p className="text-xs text-gray-500 mt-2">Test card: 4242 4242 4242 4242 | Exp: 12/25 | CVC: 123</p>
-        </div>
       </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-white font-semibold mb-2">Full name</label>
-          <input type="text" value={userInfo.fullName} readOnly className="w-full px-4 py-3 bg-white text-gray-900 rounded-lg" />
-        </div>
-        <div>
-          <label className="block text-white font-semibold mb-2">Email</label>
-          <input type="email" value={userInfo.email} readOnly className="w-full px-4 py-3 bg-white text-gray-900 rounded-lg" />
-        </div>
-        <div>
-          <label className="block text-white font-semibold mb-2">Phone Number</label>
-          <input type="tel" value={userInfo.phoneNumber} readOnly className="w-full px-4 py-3 bg-white text-gray-900 rounded-lg" />
-        </div>
-      </div>
-
-      <div className="bg-white/10 rounded-lg p-4 border border-white/20">
-        <h4 className="text-white font-semibold mb-2">Booking Details</h4>
-        <div className="text-white/80 text-sm space-y-1">
-          <p>Room: {bookingData?.roomNumber || 'N/A'}</p>
-          <p>Term: {bookingData?.rentalTerm || 'N/A'}</p>
-          <p className="text-lg font-bold text-white mt-2">
-            Amount: ₱{((bookingData?.amount || 0) / 100).toFixed(2)}
-          </p>
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
-          <p className="font-semibold">Payment Error</p>
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={processing || !stripe}
-        className="w-full bg-white text-[#061A25] font-semibold py-4 px-6 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {processing ? 'Processing Payment...' : `Pay ₱${((bookingData?.amount || 0) / 100).toFixed(2)}`}
-      </button>
-    </form>
+    </div>
   );
 };
 
-const PaymentSuccessful = ({ onTrackBooking }) => (
-  <div className="text-center text-white space-y-6">
-    <div className="w-24 h-24 mx-auto bg-green-500 rounded-full flex items-center justify-center">
-      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-      </svg>
-    </div>
-    <h1 className="text-4xl font-bold text-green-400">PAYMENT SUCCESSFUL</h1>
-    <p className="text-gray-300">Your booking has been confirmed!</p>
-    <button
-      onClick={onTrackBooking}
-      className="bg-white text-[#061A25] font-semibold py-3 px-8 rounded-lg hover:bg-gray-100"
-    >
-      View My Bookings
-    </button>
-  </div>
-);
-
-const BookingConfirmation = ({ onConfirmPayment, confirming }) => (
-  <div className="text-center text-white space-y-6">
-    <h1 className="text-4xl font-bold text-blue-400">BOOKING CONFIRMATION</h1>
-    <p className="text-gray-300">Click below to confirm your payment</p>
-    <button
-      onClick={onConfirmPayment}
-      disabled={confirming}
-      className="bg-white text-[#061A25] font-semibold py-3 px-8 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-    >
-      {confirming ? 'Confirming...' : 'Confirm Payment'}
-    </button>
-  </div>
-);
-function Payment() {
-
-  const navigate = useNavigate();
-  const { id } = useParams(); // booking ID from URL
+// Main Payment Component
+export const Payment = () => {
+  const { id } = useParams();
   const { user } = useAuth();
-  
-  const [booking, setBooking] = useState(null);
-  const [tenant, setTenant] = useState(null);
+  const navigate = useNavigate();
+  const [clientSecret, setClientSecret] = useState(null);
+  const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userInfo, setUserInfo] = useState(null);
-  const [bookingData, setBookingData] = useState(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [paymentId, setPaymentId] = useState(null);
-  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (user && id) {
-      fetchBookingData();
+      fetchPaymentAndCreateIntent();
     }
   }, [user, id]);
 
-  const fetchBookingData = async () => {
+  const fetchPaymentAndCreateIntent = async () => {
     try {
-      // Fetch booking request
-      const { data: bookingData, error: bookingError } = await supabase
-        .from('booking_requests')
-        .select('*, rooms(*)')
+      setLoading(true);
+      setError(null);
+
+      console.log('🔵 Fetching payment:', id, 'for user:', user.id);
+
+      // Fetch payment with tenant and room details
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          rooms(room_number),
+          tenants(
+            id,
+            tenant_name,
+            profile_id,
+            profiles(full_name, phone)
+          )
+        `)
         .eq('id', id)
-        .eq('requestor', user.id)
         .single();
 
-      if (bookingError) throw bookingError;
-      setBooking(bookingData);
+      if (paymentError) {
+        console.error('❌ Payment fetch error:', paymentError);
+        throw new Error('Payment not found. Please try again.');
+      }
 
-      // Fetch tenant record if exists
-      const { data: tenantData } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('profile_id', user.id)
-        .eq('room_id', bookingData.room_id)
-        .eq('status', 'Active')
-        .single();
+      if (!paymentData) {
+        throw new Error('Payment does not exist.');
+      }
 
-      setTenant(tenantData);
+      // Verify user owns this payment
+      if (paymentData.tenants?.profile_id !== user.id) {
+        throw new Error('You do not have access to this payment.');
+      }
 
-      // Fetch user profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      setPayment(paymentData);
+      console.log('✅ Payment found:', paymentData.id);
 
-      setUserInfo({
-        fullName: profileData?.full_name || 'N/A',
-        email: user.email,
-        phoneNumber: profileData?.phone || 'N/A',
+      // Check if already paid
+      if (paymentData.payment_status === 'Paid') {
+        console.log('⚠️ Payment already paid, redirecting...');
+        navigate('/profile');
+        return;
+      }
+
+      // Create payment intent
+      console.log('🔵 Creating payment intent for amount:', paymentData.amount);
+      
+      const res = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: parseFloat(paymentData.amount),
+          orderId: paymentData.id,
+          userId: user.id
+        })
       });
 
-      setBookingData({
-        id: bookingData.id,
-        roomId: bookingData.room_id,
-        roomNumber: bookingData.rooms?.room_number,
-        rentalTerm: bookingData.rooms?.rental_term,
-        amount: bookingData.rooms?.price_monthly * 100, // Convert to cents
-        tenantId: tenantData?.id || null
-      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('❌ API error response:', errorText);
+        throw new Error(`Payment setup failed: ${errorText.substring(0, 100)}`);
+      }
 
-    } catch (error) {
-      console.error('Error fetching booking:', error);
-      alert('Error loading booking data');
-      navigate('/profile#my-bookings');
+      const responseData = await res.json();
+      console.log('✅ Payment intent created:', responseData);
+
+      if (!responseData.clientSecret) {
+        throw new Error('No payment token received');
+      }
+
+      setClientSecret(responseData.clientSecret);
+
+    } catch (err) {
+      console.error('❌ Payment setup error:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleShowConfirmation = (id, result) => {
-    setPaymentId(id);
-    setShowConfirmation(true);
-  };
-
-  const handleConfirmPayment = async () => {
-    setConfirming(true);
-    
-    try {
-      // Save payment to database
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
-          tenant_id: tenant?.id || null,
-          room_id: bookingData.roomId,
-          recorded_by: user.id,
-          payment_date: new Date().toISOString().split('T')[0],
-          amount: bookingData.amount / 100,
-          payment_status: 'Paid',
-          reference_no: paymentId,
-          stripe_payment_intent_id: paymentId,
-          payment_method: 'stripe',
-          currency: 'php',
-          notes: `Stripe Payment for Room ${bookingData.roomNumber}`
-        }]);
-
-      if (paymentError) throw paymentError;
-
-      // Send notification to user
-      await supabase
-        .from('notifications')
-        .insert([{
-          user_id: user.id,
-          from_user: 'System',
-          message: `Your payment for Room ${bookingData.roomNumber} has been received. Amount: ₱${(bookingData.amount / 100).toLocaleString()}`,
-          type: 'payment',
-          is_read: false
-        }]);
-
-      setShowConfirmation(false);
-      setPaymentSuccess(true);
-      
-    } catch (err) {
-      console.error('Confirmation error:', err);
-      alert('Error saving payment. Please contact support.');
-    } finally {
-      setConfirming(false);
-    }
-  };
-
-  const handleTrackBooking = () => {
-    navigate('/profile#my-bookings');
-  };
-
-  const handlePaymentError = (error) => {
-    console.error('Payment error:', error);
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-500">Loading payment details...</div>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#061A25] mx-auto mb-4"></div>
+            <p className="text-gray-600">Setting up secure payment...</p>
+          </div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
-  if (!booking || !userInfo || !bookingData) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-gray-500">Booking not found</div>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center p-6 py-20">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Setup Error</h1>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <div className="space-y-3">
+              <button
+                onClick={fetchPaymentAndCreateIntent}
+                className="w-full bg-[#061A25] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#0a2433] transition-colors"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => navigate('/profile')}
+                className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Back to Profile
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-gray-50">
       <Header />
-
-      <main className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl">
-          <div className="bg-[#061A25] rounded-2xl shadow-xl p-8 border border-white/10">
-            {paymentSuccess ? (
-              <PaymentSuccessful onTrackBooking={handleTrackBooking} />
-            ) : showConfirmation ? (
-              <BookingConfirmation 
-                onConfirmPayment={handleConfirmPayment}
-                confirming={confirming}
-              />
-            ) : (
-              <Elements stripe={stripePromise}>
-                <PaymentForm
-                  userInfo={userInfo}
-                  bookingData={bookingData}
-                  onShowConfirmation={handleShowConfirmation}
-                  onError={handlePaymentError}
-                />
+      
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Complete Your Payment</h1>
+          <p className="text-gray-600 mt-2">Pay your rent securely with Stripe</p>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-8">
+          {/* Payment Form */}
+          <div className="md:col-span-2">
+            {clientSecret && payment && (
+              <Elements 
+                stripe={stripePromise} 
+                options={{ 
+                  clientSecret,
+                  appearance: {
+                    theme: 'stripe',
+                    variables: {
+                      colorPrimary: '#061A25',
+                    }
+                  }
+                }}
+              >
+                <PaymentForm payment={payment} clientSecret={clientSecret} />
               </Elements>
             )}
           </div>
+          
+          {/* Payment Summary Sidebar */}
+          <div className="md:col-span-1">
+            <div className="bg-white rounded-lg shadow-lg p-6 sticky top-6">
+              <h3 className="font-bold text-gray-900 mb-4">Payment Summary</h3>
+              
+              {payment && (
+                <>
+                  <div className="space-y-3 mb-6">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Room Rent</span>
+                      <span>₱{parseFloat(payment.amount).toLocaleString()}</span>
+                    </div>
+                    {payment.electricity_cost > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Electricity</span>
+                        <span>₱{parseFloat(payment.electricity_cost).toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-gray-200 pt-3">
+                      <div className="flex justify-between font-bold">
+                        <span>Total</span>
+                        <span className="text-lg">₱{parseFloat(payment.amount).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Payment Details:</h4>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p><strong>Room:</strong> {payment.rooms?.room_number}</p>
+                      <p><strong>Tenant:</strong> {payment.tenants?.tenant_name}</p>
+                      <p><strong>Due Date:</strong> {payment.due_date ? new Date(payment.due_date).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
 
       <Footer />
     </div>
   );
 };
-
-export default Payment;
-export { Payment };
-
-//test payment

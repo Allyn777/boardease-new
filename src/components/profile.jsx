@@ -186,6 +186,30 @@ const Profile = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleCancelPayment = async (paymentId) => {
+        if (!confirm('Are you sure you want to cancel this payment? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('payments')
+                .update({ payment_status: 'Cancelled' })
+                .eq('id', paymentId);
+
+            if (error) throw error;
+
+            setUploadMessage({ text: 'Payment cancelled successfully!', type: 'success' });
+            setTimeout(() => setUploadMessage({ text: '', type: '' }), 3000);
+            
+            // Refresh payments
+            fetchPayments();
+        } catch (error) {
+            console.error('Error cancelling payment:', error);
+            setUploadMessage({ text: 'Error cancelling payment', type: 'error' });
+        }
+    };
+
     const paidPayments = payments.filter(p => p.payment_status === 'Paid');
     const pendingPayments = payments.filter(p => p.payment_status === 'Pending');
 
@@ -321,6 +345,74 @@ const Profile = () => {
                                         <p className="text-sm text-gray-700 mt-1">{currentRoom.rooms.description}</p>
                                     </div>
                                 )}
+
+                                {/* Payment Actions */}
+                                {(() => {
+                                    const myPendingPayment = payments.find(p => p.payment_status === 'Pending');
+                                    const hasPaidPayment = payments.some(p => p.payment_status === 'Paid');
+                                    
+                                    return (
+                                        <div className="mt-6 pt-4 border-t border-gray-200">
+                                            {myPendingPayment ? (
+                                                <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-orange-800">Pending Payment</p>
+                                                            <p className="text-2xl font-bold text-orange-600 mt-1">
+                                                                ₱{parseFloat(myPendingPayment.amount).toLocaleString()}
+                                                            </p>
+                                                            <p className="text-xs text-orange-700 mt-1">
+                                                                Due: {new Date(myPendingPayment.due_date).toLocaleDateString('en-US', { 
+                                                                    month: 'long', 
+                                                                    day: 'numeric', 
+                                                                    year: 'numeric' 
+                                                                })}
+                                                            </p>
+                                                        </div>
+                                                        <span className="bg-orange-200 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">
+                                                            UNPAID
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <button
+                                                            onClick={() => navigate(`/payment/${myPendingPayment.id}`)}
+                                                            className="flex-1 bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors shadow-md"
+                                                        >
+                                                            💳 Pay Now
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleCancelPayment(myPendingPayment.id)}
+                                                            className="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors shadow-md"
+                                                        >
+                                                            ❌ Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : hasPaidPayment ? (
+                                                <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-green-800">✅ All Payments Up to Date</p>
+                                                            <p className="text-xs text-green-700 mt-1">You can make an advance payment if you wish</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => navigate(`/payment/advance`)}
+                                                        className="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-md"
+                                                    >
+                                                        💰 Make Advance Payment
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-4">
+                                                    <p className="text-sm text-gray-600 text-center">
+                                                        No pending payments. Payment will be created by landlord.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         ) : (
                             <div className="text-center py-8 text-gray-500">
@@ -367,6 +459,7 @@ const Profile = () => {
                                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                                 payment.payment_status === 'Paid' ? 'bg-green-100 text-green-700' :
                                                 payment.payment_status === 'Pending' ? 'bg-orange-100 text-orange-700' :
+                                                payment.payment_status === 'Cancelled' ? 'bg-gray-100 text-gray-700' :
                                                 'bg-red-100 text-red-700'
                                             }`}>
                                                 {payment.payment_status}
