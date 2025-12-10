@@ -26,8 +26,8 @@ export default function Tenants() {
   const selectedRoom = availableRooms.find(r => r.id === parseInt(tenantForm.room_id));
   const rentPerHead = selectedRoom ? selectedRoom.price_monthly / selectedRoom.capacity : 0;
   const electricPerHead = selectedRoom ? (selectedRoom.base_electric_rate || 0) / selectedRoom.capacity : 0;
-  const riceCookerCharge = tenantForm.has_rice_cooker ? 150 : 0;
-  const totalPerHead = rentPerHead + electricPerHead + riceCookerCharge;
+  const electronicsCharge = tenantForm.has_electronics ? 150 : 0; // Changed from has_rice_cooker
+  const totalPerHead = rentPerHead + electricPerHead + electronicsCharge;
 
   // Get current occupancy
   const currentOccupancy = selectedRoom ? tenants.filter(t => t.room_id === selectedRoom.id && t.status === 'Active').length : 0;
@@ -323,15 +323,18 @@ export default function Tenants() {
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id="rice_cooker"
-                  checked={tenantForm.has_rice_cooker}
-                  onChange={(e) => setTenantForm({ ...tenantForm, has_rice_cooker: e.target.checked })}
+                  id="electronics"
+                  checked={tenantForm.has_electronics}
+                  onChange={(e) => setTenantForm({ ...tenantForm, has_electronics: e.target.checked })}
                   className="w-4 h-4"
                 />
-                <label htmlFor="rice_cooker" className="text-sm text-gray-700">
-                  Has Rice Cooker (+₱150/month)
+                <label htmlFor="electronics" className="text-sm text-gray-700">
+                  Has Extra Electronics (+₱150/month)
                 </label>
               </div>
+              <p className="text-xs text-gray-500 ml-6 -mt-2">
+                Rice cooker, electric fan, or other appliances
+              </p>
 
               {/* Per-Head Cost Preview */}
               {selectedRoom && (
@@ -349,10 +352,10 @@ export default function Tenants() {
                       <span className="font-bold text-yellow-700">₱{electricPerHead.toFixed(2)}</span>
                     </div>
                     
-                    {tenantForm.has_rice_cooker && (
+                    {tenantForm.has_electronics && (
                       <div className="flex justify-between">
-                        <span className="text-orange-600">🍚 Rice cooker:</span>
-                        <span className="font-bold text-orange-700">₱{riceCookerCharge.toFixed(2)}</span>
+                        <span className="text-orange-600">🔌 Extra electronics:</span>
+                        <span className="font-bold text-orange-700">₱{electronicsCharge.toFixed(2)}</span>
                       </div>
                     )}
                     
@@ -524,16 +527,16 @@ export default function Tenants() {
                     </p>
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-purple-100">
-                    <p className="text-xs text-gray-600 mb-1">🍚 Rice Cooker</p>
+                    <p className="text-xs text-gray-600 mb-1">🔌 Extra Electronics</p>
                     <p className="text-lg font-bold text-orange-700">
-                      {paymentHistory.length > 0 && paymentHistory[0].notes?.includes('rice cooker') 
+                      {paymentHistory.length > 0 && paymentHistory[0].notes?.toLowerCase().includes('electronics') 
                         ? '₱150.00' 
                         : '₱0.00'}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {paymentHistory.length > 0 && paymentHistory[0].notes?.includes('rice cooker') 
-                        ? 'Has rice cooker' 
-                        : 'No rice cooker'}
+                      {paymentHistory.length > 0 && paymentHistory[0].notes?.toLowerCase().includes('electronics') 
+                        ? 'Has extra electronics' 
+                        : 'No extra electronics'}
                     </p>
                   </div>
                 </div>

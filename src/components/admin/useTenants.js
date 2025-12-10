@@ -18,7 +18,7 @@ export const useTenants = () => {
     profile_id: '',
     rent_start: '',
     rent_due: '',
-    has_rice_cooker: false,
+    has_electronics: false, // Changed from has_rice_cooker
   });
 
   useEffect(() => {
@@ -143,8 +143,8 @@ export const useTenants = () => {
       // Calculate per-head costs
       const rentPerHead = roomData.price_monthly / roomData.capacity;
       const electricPerHead = (roomData.base_electric_rate || 0) / roomData.capacity;
-      const riceCookerCharge = tenantForm.has_rice_cooker ? 150 : 0;
-      const totalAmount = rentPerHead + electricPerHead + riceCookerCharge;
+      const electronicsCharge = tenantForm.has_electronics ? 150 : 0; // Changed from riceCookerCharge
+      const totalAmount = rentPerHead + electricPerHead + electronicsCharge;
 
       // Add tenant
       const { data: newTenant, error: tenantError } = await supabase
@@ -174,7 +174,7 @@ export const useTenants = () => {
 
       if (roomError) throw roomError;
 
-      // Create initial payment record
+      // Create initial payment record with updated note
       const { error: paymentError } = await supabase
         .from('payments')
         .insert([{
@@ -186,7 +186,7 @@ export const useTenants = () => {
           electricity_reading: 0,
           electricity_cost: electricPerHead,
           payment_status: 'Pending',
-          notes: tenantForm.has_rice_cooker ? 'Includes ₱150 rice cooker charge' : null,
+          notes: tenantForm.has_electronics ? 'Includes ₱150 extra electronics charge' : null, // Updated note
         }]);
 
       if (paymentError) throw paymentError;
@@ -206,7 +206,7 @@ export const useTenants = () => {
         profile_id: '',
         rent_start: '',
         rent_due: '',
-        has_rice_cooker: false,
+        has_electronics: false, // Changed from has_rice_cooker
       });
 
       setShowAddTenant(false);
@@ -248,8 +248,8 @@ export const useTenants = () => {
         `🚨 Remove Tenant?\n\n` +
         `📍 Room: ${roomData?.room_number}\n` +
         `👥 Current Occupancy: ${currentOccupancy}/${roomData?.capacity}\n` +
-        `➡️  After Removal: ${afterRemoval}/${roomData?.capacity}\n\n` +
-        `${afterRemoval === 0 ? '✅ Room will become AVAILABLE' : afterRemoval < roomData?.capacity ? '✅ Room will become AVAILABLE (has space)' : '⚠️  Room will remain OCCUPIED'}\n\n` +
+        `➡️ After Removal: ${afterRemoval}/${roomData?.capacity}\n\n` +
+        `${afterRemoval === 0 ? '✅ Room will become AVAILABLE' : afterRemoval < roomData?.capacity ? '✅ Room will become AVAILABLE (has space)' : '⚠️ Room will remain OCCUPIED'}\n\n` +
         `Continue?`
       )) return;
 
