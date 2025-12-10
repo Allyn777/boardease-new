@@ -6,6 +6,7 @@ import Profile from "./components/profile";
 import AdminRoutes from "./components/admin";
 import Notifications from "./components/notifications";
 import { Payment } from "./components/payment";
+import PaymentSuccess from "./components/PaymentSuccess"; // 🔥 ADD THIS LINE
 import { AuthProvider, useAuth } from "./contexts/authcontext";
 import OfflineDetector from "./components/OfflineDetector";
 
@@ -53,7 +54,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
   // Admin required but user is not admin
   if (requireAdmin && userRole !== "admin") {
-    return <Navigate to="/profile" replace />;  // 👈 Changed from /home to /profile
+    return <Navigate to="/profile" replace />;
   }
 
   return children;
@@ -67,7 +68,7 @@ const PublicRoute = ({ children }) => {
   if (user) {
     return userRole === "admin"
       ? <Navigate to="/admin" replace />
-      : <Navigate to="/profile" replace />;  // 👈 Changed from /home to /profile
+      : <Navigate to="/profile" replace />;
   }
 
   // Only show loading if auth check hasn't completed yet
@@ -130,6 +131,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Payment />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🔥 ADD THIS NEW ROUTE */}
+          <Route
+            path="/payment-success/:id"
+            element={
+              <ProtectedRoute>
+                <PaymentSuccess />
               </ProtectedRoute>
             }
           />
