@@ -83,48 +83,50 @@ const PaymentSuccess = () => {
 
       // STEP 2: Update payment to PAID
       console.log('🔵 STEP 2: Updating payment status to PAID...');
+      
+      // 🔥 THE CRITICAL FIX: Use the TENANT's ID to update, not user ID
+      const updateData = {
+        payment_status: 'Paid',
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'stripe',
+        stripe_payment_intent_id: paymentIntent || null,
+        reference_no: paymentIntent ? `STRIPE-${paymentIntent.slice(-12)}` : null,
+      };
+
+      console.log('🔵 Update data:', updateData);
+      console.log('🔵 Updating payment ID:', id);
+
       const { data: updatedPaymentArray, error: updateError } = await supabase
         .from('payments')
-        .update({
-          payment_status: 'Paid',
-          payment_date: new Date().toISOString().split('T')[0],
-          payment_method: 'stripe',
-          stripe_payment_intent_id: paymentIntent || null,
-          reference_no: paymentIntent ? `STRIPE-${paymentIntent.slice(-12)}` : null,
-        })
+        .update(updateData)
         .eq('id', id)
-        .select();
+        .select(`
+          *,
+          rooms(room_number),
+          tenants(tenant_name, profiles(full_name, phone))
+        `);
 
       if (updateError) {
         console.error('❌ Payment update failed:', updateError);
+        console.error('❌ Error details:', {
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint,
+          code: updateError.code
+        });
         throw new Error(`Failed to update payment: ${updateError.message}`);
       }
 
       if (!updatedPaymentArray || updatedPaymentArray.length === 0) {
         console.error('❌ Payment update returned 0 rows');
-        throw new Error('Payment update failed - no rows affected. Check RLS policies.');
+        console.error('❌ This usually means RLS policies are blocking the update');
+        throw new Error('Payment update failed - Check RLS policies. The update was blocked by database security rules.');
       }
 
       console.log('✅ Payment status updated to PAID');
+      console.log('✅ Updated payment:', updatedPaymentArray[0]);
 
-      // STEP 3: Fetch final payment state
-      console.log('🔵 STEP 3: Fetching final payment state...');
-      const { data: finalPayment, error: fetchError } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          rooms(room_number),
-          tenants(tenant_name, profiles(full_name, phone))
-        `)
-        .eq('id', id)
-        .single();
-
-      if (fetchError) {
-        console.error('❌ Final payment fetch error:', fetchError);
-        throw new Error(`Failed to load updated payment: ${fetchError.message}`);
-      }
-
-      setPayment(finalPayment);
+      setPayment(updatedPaymentArray[0]);
       console.log('✅✅✅ PAYMENT SUCCESS FLOW COMPLETE ✅✅✅');
       setLoading(false);
       
@@ -166,7 +168,7 @@ const PaymentSuccess = () => {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Confirmation Error</h1>
             <p className="text-gray-600 mb-4">{error}</p>
             <p className="text-sm text-gray-500 mb-6">
-              Your payment may have been successful. Please check your payment history or contact support.
+              Your payment may have been successful with Stripe. Please check your payment history or contact support.
             </p>
             <div className="space-y-3">
               <button
