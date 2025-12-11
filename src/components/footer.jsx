@@ -23,7 +23,6 @@ const Footer = () => {
               <li className="hover:text-white transition-colors">Room Management</li>
               <li className="hover:text-white transition-colors">Tenant Tracking</li>
               <li className="hover:text-white transition-colors">Billing & Invoices</li>
-              <li className="hover:text-white transition-colors">Real-time Notifications</li>
               <li className="hover:text-white transition-colors">Report Generation</li>
             </ul>
           </div>
@@ -32,11 +31,9 @@ const Footer = () => {
           <div className="text-center md:text-left">
             <h4 className="text-lg font-semibold mb-3">Quick Links</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="/home" className="hover:text-white transition-colors">Dashboard</a></li>
-              <li><a href="/rooms" className="hover:text-white transition-colors">Available Rooms</a></li>
               <li><a href="/profile" className="hover:text-white transition-colors">Payment History</a></li>
               <li><a href="/profile" className="hover:text-white transition-colors">Account Settings</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Manage Tenants</a></li>
+             
 
             </ul>
           </div>
@@ -54,7 +51,7 @@ const Footer = () => {
               <h5 className="text-sm font-semibold mb-2">Developed By</h5>
               <div className="text-sm text-gray-400 space-y-1">
                 <p className="hover:text-white transition-colors">Allyn Marc C. Dumapias</p>
-                <p className="hover:text-white transition-colors">Dec Florhen A. Uy</p>
+                <p className="hover:text-white transition-colors">Dec Florhen T. Uy</p>
               </div>
             </div>
           </div>
