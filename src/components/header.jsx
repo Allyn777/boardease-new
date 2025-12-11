@@ -44,12 +44,6 @@ const Header = () => {
 
           {/* Desktop / tablet nav */}
           <nav className="hidden md:flex items-center gap-4"> 
-            <button onClick={() => navigate('/notifications')} className={`flex items-center gap-2 text-sm px-3 py-1 rounded ${isActive('/notifications') ? 'text-white bg-[#0b2f36]' : 'text-white hover:text-gray-200'}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span>Notifications</span>
-            </button>
             <button onClick={() => navigate('/profile')} className={`flex items-center gap-2 text-sm px-3 py-1 rounded ${isActive('/profile') ? 'text-white bg-[#0b2f36]' : 'text-white hover:text-gray-200'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -91,12 +85,6 @@ const Header = () => {
       {open && (
         <div className="md:hidden bg-[#071E26] border-t border-[#06303a]"> 
           <div className="px-4 pt-4 pb-6 space-y-2">
-            <button onClick={() => { setOpen(false); navigate('/notifications'); }} className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 ${isActive('/notifications') ? 'text-white bg-[#0b2f36]' : 'text-white hover:bg-white/5'}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span>Notifications</span>
-            </button>
             <button onClick={() => { setOpen(false); navigate('/profile'); }} className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 ${isActive('/profile') ? 'text-white bg-[#0b2f36]' : 'text-white hover:bg-white/5'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

@@ -4,13 +4,12 @@ import Login from "./components/login";
 import Signup from "./components/signup";
 import Profile from "./components/profile";
 import AdminRoutes from "./components/admin";
-import Notifications from "./components/notifications";
 import { Payment } from "./components/payment";
-import PaymentSuccess from "./components/PaymentSuccess"; // 🔥 ADD THIS LINE
+import PaymentSuccess from "./components/PaymentSuccess";
 import { AuthProvider, useAuth } from "./contexts/authcontext";
 import OfflineDetector from "./components/OfflineDetector";
 
-// 🔥 Loading Screen Component
+// Loading Screen Component
 const LoadingScreen = () => (
   <div style={{
     display: 'flex',
@@ -42,7 +41,7 @@ const LoadingScreen = () => (
   </div>
 );
 
-// 🔥 Protected Route (Shows loading screen while checking auth)
+// Protected Route (Shows loading screen while checking auth)
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { user, userRole, authChecked } = useAuth();
 
@@ -60,7 +59,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   return children;
 };
 
-// 🔥 Public Route (Instant redirect if logged in, loading only if uncertain)
+// Public Route (Instant redirect if logged in, loading only if uncertain)
 const PublicRoute = ({ children }) => {
   const { user, userRole, authChecked } = useAuth();
 
@@ -80,7 +79,7 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      {/* 🔥 PWA Offline Detector */}
+      {/* PWA Offline Detector */}
       <OfflineDetector />
       
       <Router>
@@ -118,15 +117,6 @@ function App() {
           />
 
           <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
             path="/payment/:id"
             element={
               <ProtectedRoute>
@@ -135,7 +125,6 @@ function App() {
             }
           />
 
-          {/* 🔥 ADD THIS NEW ROUTE */}
           <Route
             path="/payment-success/:id"
             element={
