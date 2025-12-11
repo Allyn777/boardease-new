@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './header';
 import Footer from './footer';
+import AdvancePaymentModal from './AdvancePaymentModal';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/authcontext';
 
@@ -30,6 +31,7 @@ const Profile = () => {
     const [loading, setLoading] = useState(true);
     const [currentRoom, setCurrentRoom] = useState(null);
     const [payments, setPayments] = useState([]);
+    const [showAdvancePayment, setShowAdvancePayment] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -384,7 +386,7 @@ const Profile = () => {
                                                             onClick={() => handleCancelPayment(myPendingPayment.id)}
                                                             className="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors shadow-md"
                                                         >
-                                                            ❌ Cancel
+                                                            ✖ Cancel
                                                         </button>
                                                     </div>
                                                 </div>
@@ -393,11 +395,17 @@ const Profile = () => {
                                                     <div className="flex items-center justify-between mb-3">
                                                         <div>
                                                             <p className="text-sm font-semibold text-green-800">✅ All Payments Up to Date</p>
-                                                            <p className="text-xs text-green-700 mt-1">You can make an advance payment if you wish</p>
+                                                            <p className="text-xs text-green-700 mt-1">
+                                                                Current due: {currentRoom.rent_due ? new Date(currentRoom.rent_due).toLocaleDateString('en-US', {
+                                                                    month: 'long',
+                                                                    day: 'numeric',
+                                                                    year: 'numeric'
+                                                                }) : 'N/A'}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                     <button
-                                                        onClick={() => navigate(`/payment/advance`)}
+                                                        onClick={() => setShowAdvancePayment(true)}
                                                         className="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-md"
                                                     >
                                                         💰 Make Advance Payment
@@ -497,6 +505,18 @@ const Profile = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Advance Payment Modal */}
+            <AdvancePaymentModal
+                isOpen={showAdvancePayment}
+                onClose={() => setShowAdvancePayment(false)}
+                currentRoom={currentRoom}
+                onSuccess={async () => {
+                    await Promise.all([fetchCurrentRoom(), fetchPayments()]);
+                    setUploadMessage({ text: '✅ Advance payment created!', type: 'success' });
+                    setTimeout(() => setUploadMessage({ text: '', type: '' }), 3000);
+                }}
+            />
 
             <Footer />
         </div>
