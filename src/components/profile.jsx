@@ -3,8 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import Header from './header';
 import Footer from './footer';
 import AdvancePaymentModal from './AdvancePaymentModal';
+import PaymentDetailsModal from './PaymentDetailsModal';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/authcontext';
+import {
+  formatCurrency,
+  formatDate,
+  getPaymentStatusColor,
+  getPaymentStatusIcon,
+  calculatePaymentStats
+} from '../utils/paymentCalculations';
 
 // Icon Definitions
 const Icon = ({ path, className = "w-6 h-6", ...props }) => (
@@ -32,6 +40,8 @@ const Profile = () => {
     const [currentRoom, setCurrentRoom] = useState(null);
     const [payments, setPayments] = useState([]);
     const [showAdvancePayment, setShowAdvancePayment] = useState(false);
+    const [showPaymentDetails, setShowPaymentDetails] = useState(false);
+    const [selectedPayment, setSelectedPayment] = useState(null);
 
     useEffect(() => {
         if (user) {
@@ -99,7 +109,7 @@ const Profile = () => {
             
             const { data, error } = await supabase
                 .from('payments')
-                .select('*, rooms(room_number)')
+                .select('*, rooms(room_number, price_monthly, capacity, base_electric_rate)')
                 .in('tenant_id', tenantIds)
                 .order('payment_date', { ascending: false });
 
@@ -204,7 +214,6 @@ const Profile = () => {
             setUploadMessage({ text: 'Payment cancelled successfully!', type: 'success' });
             setTimeout(() => setUploadMessage({ text: '', type: '' }), 3000);
             
-            // Refresh payments
             fetchPayments();
         } catch (error) {
             console.error('Error cancelling payment:', error);
@@ -212,8 +221,14 @@ const Profile = () => {
         }
     };
 
+    const handleViewPaymentDetails = (payment) => {
+        setSelectedPayment(payment);
+        setShowPaymentDetails(true);
+    };
+
     const paidPayments = payments.filter(p => p.payment_status === 'Paid');
     const pendingPayments = payments.filter(p => p.payment_status === 'Pending');
+    const paymentStats = calculatePaymentStats(payments);
 
     if (loading) {
         return (
@@ -316,27 +331,19 @@ const Profile = () => {
                                     <div>
                                         <p className="text-sm text-gray-600 font-medium">Monthly Rent</p>
                                         <p className="text-2xl font-bold text-green-600 mt-1">
-                                            ₱{currentRoom.rooms?.price_monthly.toLocaleString()}
+                                            {formatCurrency(currentRoom.rooms?.price_monthly)}
                                         </p>
                                     </div>
                                     <div>
                                         <p className="text-sm text-gray-600 font-medium">Start Date</p>
                                         <p className="text-lg font-semibold text-gray-900 mt-1">
-                                            {new Date(currentRoom.rent_start).toLocaleDateString('en-US', { 
-                                                month: 'long', 
-                                                day: 'numeric', 
-                                                year: 'numeric' 
-                                            })}
+                                            {formatDate(currentRoom.rent_start)}
                                         </p>
                                     </div>
                                     <div>
                                         <p className="text-sm text-gray-600 font-medium">Due Date</p>
                                         <p className="text-lg font-semibold text-gray-900 mt-1">
-                                            {new Date(currentRoom.rent_due).toLocaleDateString('en-US', { 
-                                                month: 'long', 
-                                                day: 'numeric', 
-                                                year: 'numeric' 
-                                            })}
+                                            {formatDate(currentRoom.rent_due)}
                                         </p>
                                     </div>
                                 </div>
@@ -361,14 +368,10 @@ const Profile = () => {
                                                         <div>
                                                             <p className="text-sm font-semibold text-orange-800">Pending Payment</p>
                                                             <p className="text-2xl font-bold text-orange-600 mt-1">
-                                                                ₱{parseFloat(myPendingPayment.amount).toLocaleString()}
+                                                                {formatCurrency(myPendingPayment.amount)}
                                                             </p>
                                                             <p className="text-xs text-orange-700 mt-1">
-                                                                Due: {new Date(myPendingPayment.due_date).toLocaleDateString('en-US', { 
-                                                                    month: 'long', 
-                                                                    day: 'numeric', 
-                                                                    year: 'numeric' 
-                                                                })}
+                                                                Due: {formatDate(myPendingPayment.due_date, 'short')}
                                                             </p>
                                                         </div>
                                                         <span className="bg-orange-200 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">
@@ -383,10 +386,10 @@ const Profile = () => {
                                                             💳 Pay Now
                                                         </button>
                                                         <button
-                                                            onClick={() => handleCancelPayment(myPendingPayment.id)}
-                                                            className="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors shadow-md"
+                                                            onClick={() => handleViewPaymentDetails(myPendingPayment)}
+                                                            className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-md"
                                                         >
-                                                            ✖ Cancel
+                                                            📄 Details
                                                         </button>
                                                     </div>
                                                 </div>
@@ -396,11 +399,7 @@ const Profile = () => {
                                                         <div>
                                                             <p className="text-sm font-semibold text-green-800">✅ All Payments Up to Date</p>
                                                             <p className="text-xs text-green-700 mt-1">
-                                                                Current due: {currentRoom.rent_due ? new Date(currentRoom.rent_due).toLocaleDateString('en-US', {
-                                                                    month: 'long',
-                                                                    day: 'numeric',
-                                                                    year: 'numeric'
-                                                                }) : 'N/A'}
+                                                                Current due: {formatDate(currentRoom.rent_due, 'short')}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -433,73 +432,110 @@ const Profile = () => {
 
                 {/* Payment History Section */}
                 <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 mt-6">
-                    <div className="bg-[#061A25] text-white px-6 py-4 flex items-center justify-between">
-                        <h2 className="text-xl font-bold">Payment History</h2>
-                        <div className="text-sm">
-                            {pendingPayments.length > 0 && (
-                                <span className="bg-orange-500 px-3 py-1 rounded-full">
-                                    {pendingPayments.length} Pending
-                                </span>
-                            )}
+                    <div className="bg-[#061A25] text-white px-6 py-4">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-bold">Payment History</h2>
+                            <div className="flex gap-2 text-xs">
+                                {pendingPayments.length > 0 && (
+                                    <span className="bg-orange-500 px-3 py-1 rounded-full font-semibold">
+                                        {pendingPayments.length} Pending
+                                    </span>
+                                )}
+                                {paidPayments.length > 0 && (
+                                    <span className="bg-green-500 px-3 py-1 rounded-full font-semibold">
+                                        {paidPayments.length} Paid
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     <div className="p-6">
+                        {/* Payment Stats */}
+                        {payments.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    <p className="text-xs text-green-600 font-medium mb-1">Total Paid</p>
+                                    <p className="text-2xl font-bold text-green-700">
+                                        {formatCurrency(paymentStats.totalPaid)}
+                                    </p>
+                                    <p className="text-xs text-green-600 mt-1">{paymentStats.paidCount} payment{paymentStats.paidCount !== 1 ? 's' : ''}</p>
+                                </div>
+                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                    <p className="text-xs text-orange-600 font-medium mb-1">Total Pending</p>
+                                    <p className="text-2xl font-bold text-orange-700">
+                                        {formatCurrency(paymentStats.totalPending)}
+                                    </p>
+                                    <p className="text-xs text-orange-600 mt-1">{paymentStats.pendingCount} payment{paymentStats.pendingCount !== 1 ? 's' : ''}</p>
+                                </div>
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <p className="text-xs text-blue-600 font-medium mb-1">Total Amount</p>
+                                    <p className="text-2xl font-bold text-blue-700">
+                                        {formatCurrency(paymentStats.totalAmount)}
+                                    </p>
+                                    <p className="text-xs text-blue-600 mt-1">{paymentStats.totalCount} total</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Payment List */}
                         {payments.length === 0 ? (
                             <div className="text-center py-8 text-gray-500">
                                 <p>No payment records yet.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {payments.map((payment) => (
-                                    <div key={payment.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <p className="font-semibold text-gray-900">
-                                                    {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-US', { 
-                                                        month: 'long', 
-                                                        day: 'numeric', 
-                                                        year: 'numeric' 
-                                                    }) : 'N/A'}
-                                                </p>
-                                                <p className="text-sm text-gray-600">Room {payment.rooms?.room_number}</p>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                payment.payment_status === 'Paid' ? 'bg-green-100 text-green-700' :
-                                                payment.payment_status === 'Pending' ? 'bg-orange-100 text-orange-700' :
-                                                payment.payment_status === 'Cancelled' ? 'bg-gray-100 text-gray-700' :
-                                                'bg-red-100 text-red-700'
-                                            }`}>
-                                                {payment.payment_status}
-                                            </span>
-                                        </div>
-                                        
-                                        <div className="grid grid-cols-2 gap-2 text-sm mt-3">
-                                            <div>
-                                                <p className="text-gray-600">Amount:</p>
-                                                <p className="font-semibold text-green-600">₱{parseFloat(payment.amount || 0).toLocaleString()}</p>
-                                            </div>
-                                            {payment.due_date && (
+                                {payments.map((payment) => {
+                                    const statusColor = getPaymentStatusColor(payment.payment_status);
+                                    const statusIcon = getPaymentStatusIcon(payment.payment_status);
+                                    
+                                    return (
+                                        <div 
+                                            key={payment.id} 
+                                            className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                                            onClick={() => handleViewPaymentDetails(payment)}
+                                        >
+                                            <div className="flex justify-between items-start mb-2">
                                                 <div>
-                                                    <p className="text-gray-600">Due Date:</p>
-                                                    <p className="font-medium">{new Date(payment.due_date).toLocaleDateString()}</p>
+                                                    <p className="font-semibold text-gray-900">
+                                                        {payment.payment_date ? formatDate(payment.payment_date, 'short') : 'Not paid yet'}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">Room {payment.rooms?.room_number}</p>
                                                 </div>
-                                            )}
-                                            {payment.electricity_reading > 0 && (
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColor}`}>
+                                                    {statusIcon} {payment.payment_status}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 gap-2 text-sm mt-3">
                                                 <div>
-                                                    <p className="text-gray-600">Electricity:</p>
-                                                    <p className="font-medium">{payment.electricity_reading} kWh</p>
+                                                    <p className="text-gray-600">Amount:</p>
+                                                    <p className="font-semibold text-green-600">
+                                                        {formatCurrency(payment.amount)}
+                                                    </p>
                                                 </div>
-                                            )}
-                                            {payment.reference_no && (
-                                                <div className="col-span-2">
-                                                    <p className="text-gray-600">Reference:</p>
-                                                    <p className="font-mono text-xs">{payment.reference_no}</p>
-                                                </div>
-                                            )}
+                                                {payment.due_date && (
+                                                    <div>
+                                                        <p className="text-gray-600">Due Date:</p>
+                                                        <p className="font-medium">{formatDate(payment.due_date, 'short')}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="mt-3 pt-3 border-t border-gray-200">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleViewPaymentDetails(payment);
+                                                    }}
+                                                    className="text-sm text-blue-600 font-semibold hover:text-blue-800"
+                                                >
+                                                    View Full Details →
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -515,6 +551,17 @@ const Profile = () => {
                     await Promise.all([fetchCurrentRoom(), fetchPayments()]);
                     setUploadMessage({ text: '✅ Advance payment created!', type: 'success' });
                     setTimeout(() => setUploadMessage({ text: '', type: '' }), 3000);
+                }}
+            />
+
+            {/* Payment Details Modal */}
+            <PaymentDetailsModal
+                payment={selectedPayment}
+                room={selectedPayment?.rooms}
+                isOpen={showPaymentDetails}
+                onClose={() => {
+                    setShowPaymentDetails(false);
+                    setSelectedPayment(null);
                 }}
             />
 
