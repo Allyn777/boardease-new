@@ -6,6 +6,7 @@ import Rooms from "./rooms";
 import Tenants from "./tenants";
 import Payments from "./payment";
 
+
 export default function AdminRoutes() {
   return (
     <Layout>
