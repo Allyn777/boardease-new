@@ -4,24 +4,13 @@ import { supabase } from '../../lib/supabaseClient';
 export const usePayments = () => {
   // State Management
   const [payments, setPayments] = useState([]);
-  const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('History');
-  const [showAddPayment, setShowAddPayment] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [showEditPayment, setShowEditPayment] = useState(false);
 
-  // Form States
-  const [paymentForm, setPaymentForm] = useState({
-    tenant_id: '',
-    amount: '',
-    due_date: '',
-    electricity_reading: '',
-    electricity_cost: '',
-    notes: '',
-  });
-
+  // Edit Form State
   const [editForm, setEditForm] = useState({
     amount: '',
     due_date: '',
@@ -34,7 +23,6 @@ export const usePayments = () => {
   // Initial Data Fetch
   useEffect(() => {
     fetchPayments();
-    fetchActiveTenants();
   }, []);
 
   // Fetch Functions
@@ -59,72 +47,7 @@ export const usePayments = () => {
     }
   };
 
-  const fetchActiveTenants = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('id, tenant_name, room_id, rooms(room_number, price_monthly)')
-        .eq('status', 'Active')
-        .order('tenant_name', { ascending: true });
-
-      if (error) throw error;
-      setTenants(data || []);
-    } catch (error) {
-      console.error('Error fetching tenants:', error);
-    }
-  };
-
   // Payment Actions
-  const handleAddPayment = async (e) => {
-    e.preventDefault();
-
-    if (!paymentForm.tenant_id || !paymentForm.amount || !paymentForm.due_date) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const selectedTenant = tenants.find(t => t.id === parseInt(paymentForm.tenant_id));
-
-      const { error } = await supabase
-        .from('payments')
-        .insert([{
-          tenant_id: parseInt(paymentForm.tenant_id),
-          room_id: selectedTenant?.room_id,
-          payment_date: new Date().toISOString().split('T')[0],
-          due_date: paymentForm.due_date,
-          amount: parseFloat(paymentForm.amount),
-          electricity_reading: parseFloat(paymentForm.electricity_reading) || 0,
-          electricity_cost: parseFloat(paymentForm.electricity_cost) || 0,
-          payment_status: 'Pending',
-          notes: paymentForm.notes,
-        }]);
-
-      if (error) throw error;
-
-      alert('✅ Payment record added successfully!');
-      
-      setPaymentForm({
-        tenant_id: '',
-        amount: '',
-        due_date: '',
-        electricity_reading: '',
-        electricity_cost: '',
-        notes: '',
-      });
-
-      setShowAddPayment(false);
-      await fetchPayments();
-    } catch (error) {
-      console.error('Error adding payment:', error);
-      alert('❌ Error adding payment: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePaymentClick = (payment) => {
     setSelectedPayment(payment);
     setShowPaymentDetails(true);
@@ -294,26 +217,20 @@ export const usePayments = () => {
   return {
     // State
     payments,
-    tenants,
     loading,
     filter,
-    showAddPayment,
     selectedPayment,
     showPaymentDetails,
     showEditPayment,
-    paymentForm,
     editForm,
     filteredPayments,
     stats,
 
     // Setters
     setFilter,
-    setShowAddPayment,
-    setPaymentForm,
     setEditForm,
 
     // Actions
-    handleAddPayment,
     handlePaymentClick,
     handleEditClick,
     handleUpdatePayment,

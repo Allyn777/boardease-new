@@ -1,26 +1,19 @@
 import { usePayments } from './usePayments';
 import PaymentDetailsModal from './PaymentDetailsModal';
 import EditPaymentModal from './EditPaymentModal';
-import AddPaymentForm from './AddPaymentForm';
 
 export default function Payments() {
   const {
     loading,
     filter,
     setFilter,
-    showAddPayment,
-    setShowAddPayment,
     selectedPayment,
     showPaymentDetails,
     showEditPayment,
-    paymentForm,
-    setPaymentForm,
     editForm,
     setEditForm,
-    tenants,
     filteredPayments,
     stats,
-    handleAddPayment,
     handlePaymentClick,
     handleEditClick,
     handleUpdatePayment,
@@ -104,14 +97,10 @@ export default function Payments() {
           <div>
             <p className="text-xs sm:text-sm uppercase tracking-widest text-gray-500">Admin Payment Management</p>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Payment Management</h2>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
+              View and manage all payment records
+            </p>
           </div>
-
-          <button
-            onClick={() => setShowAddPayment(true)}
-            className="rounded-md bg-black px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow hover:bg-gray-900"
-          >
-            Add Payment Record
-          </button>
         </div>
 
         {/* Filter Buttons */}
@@ -258,18 +247,6 @@ export default function Payments() {
         )}
       </div>
 
-      {/* ADD PAYMENT MODAL */}
-      {showAddPayment && (
-        <AddPaymentForm
-          paymentForm={paymentForm}
-          setPaymentForm={setPaymentForm}
-          handleAddPayment={handleAddPayment}
-          tenants={tenants}
-          onClose={() => setShowAddPayment(false)}
-          loading={loading}
-        />
-      )}
-
       {/* PAYMENT DETAILS MODAL */}
       {showPaymentDetails && selectedPayment && (
         <PaymentDetailsModal
@@ -287,7 +264,7 @@ export default function Payments() {
           editForm={editForm}
           setEditForm={setEditForm}
           handleUpdatePayment={handleUpdatePayment}
-          onClose={() => setShowEditPayment(false)}
+          onClose={() => closeModals()}
           loading={loading}
           payment={selectedPayment}
         />
