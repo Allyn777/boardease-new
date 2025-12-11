@@ -1,4 +1,4 @@
-// src/components/AdvancePaymentModal.jsx
+// src/components/AdvancePaymentModal.jsx - MOBILE OPTIMIZED
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/authcontext';
@@ -88,18 +88,18 @@ const AdvancePaymentModal = ({ isOpen, onClose, currentRoom, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-900">Advance Payment</h3>
-            <p className="text-sm text-gray-600 mt-1">Pay for next month in advance</p>
+        <div className="flex items-center justify-between border-b border-gray-200 pb-3 sm:pb-4">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">Advance Payment</h3>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">Pay for next month in advance</p>
           </div>
           <button 
             onClick={onClose}
             disabled={creating}
-            className="text-gray-500 hover:text-black text-2xl disabled:opacity-50"
+            className="text-gray-500 hover:text-black text-xl sm:text-2xl disabled:opacity-50 flex-shrink-0 ml-2"
           >
             ✕
           </button>
@@ -107,19 +107,19 @@ const AdvancePaymentModal = ({ isOpen, onClose, currentRoom, onSuccess }) => {
 
         {/* Loading State */}
         {loading && (
-          <div className="py-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Calculating payment...</p>
+          <div className="py-8 sm:py-12 text-center">
+            <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
+            <p className="text-sm sm:text-base text-gray-600">Calculating payment...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-800">❌ {error}</p>
+          <div className="mt-4 sm:mt-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-red-800">❌ {error}</p>
             <button
               onClick={onClose}
-              className="mt-3 w-full bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700"
+              className="mt-2 sm:mt-3 w-full bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700"
             >
               Close
             </button>
@@ -128,19 +128,19 @@ const AdvancePaymentModal = ({ isOpen, onClose, currentRoom, onSuccess }) => {
 
         {/* Payment Details */}
         {!loading && !error && paymentData && (
-          <div className="mt-6 space-y-4">
+          <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
             {/* Room Info */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
               <p className="text-xs text-gray-600 font-medium mb-1">Your Room</p>
-              <p className="text-lg font-bold text-gray-900">
+              <p className="text-base sm:text-lg font-bold text-gray-900">
                 Room {paymentData.room.room_number}
               </p>
             </div>
 
             {/* Current Due Date */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
               <p className="text-xs text-gray-600 font-medium mb-1">Current Due Date</p>
-              <p className="text-lg font-bold text-gray-900">
+              <p className="text-base sm:text-lg font-bold text-gray-900">
                 {paymentData.currentDueDate.toLocaleDateString('en-US', {
                   month: 'long',
                   day: 'numeric',
@@ -151,15 +151,15 @@ const AdvancePaymentModal = ({ isOpen, onClose, currentRoom, onSuccess }) => {
 
             {/* Arrow */}
             <div className="flex justify-center">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
             </div>
 
             {/* New Due Date */}
-            <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+            <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 sm:p-4">
               <p className="text-xs text-blue-600 font-medium mb-1">New Due Date (After Payment)</p>
-              <p className="text-lg font-bold text-blue-900">
+              <p className="text-base sm:text-lg font-bold text-blue-900">
                 {paymentData.nextDueDateFormatted}
               </p>
               <p className="text-xs text-blue-700 mt-1">
@@ -168,10 +168,10 @@ const AdvancePaymentModal = ({ isOpen, onClose, currentRoom, onSuccess }) => {
             </div>
 
             {/* Payment Breakdown */}
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg p-5">
-              <h4 className="text-sm font-bold text-green-800 mb-3">💰 Payment Breakdown</h4>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 sm:p-5">
+              <h4 className="text-xs sm:text-sm font-bold text-green-800 mb-2 sm:mb-3">💰 Payment Breakdown</h4>
               
-              <div className="space-y-2 text-sm">
+              <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Rent (per person):</span>
                   <span className="font-semibold text-gray-900">
@@ -193,28 +193,28 @@ const AdvancePaymentModal = ({ isOpen, onClose, currentRoom, onSuccess }) => {
                   </div>
                 )}
                 
-                <div className="border-t border-green-300 pt-2 flex justify-between">
+                <div className="border-t border-green-300 pt-1.5 sm:pt-2 flex justify-between">
                   <span className="font-bold text-green-800">Total Amount:</span>
-                  <span className="text-2xl font-bold text-green-800">
+                  <span className="text-xl sm:text-2xl font-bold text-green-800">
                     ₱{paymentData.payment.totalAmount.toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-green-600 mt-3">
+              <p className="text-xs text-green-600 mt-2 sm:mt-3">
                 ✅ Same as your regular monthly payment
               </p>
             </div>
 
             {/* Info Box */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <div>
-                  <p className="text-sm font-semibold text-yellow-800">How Advance Payment Works</p>
-                  <ul className="text-xs text-yellow-700 mt-2 space-y-1">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-semibold text-yellow-800">How Advance Payment Works</p>
+                  <ul className="text-xs text-yellow-700 mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1">
                     <li>• Your due date will be extended by 1 month</li>
                     <li>• Payment amount stays the same</li>
                     <li>• You can pay multiple months in advance</li>
@@ -225,26 +225,30 @@ const AdvancePaymentModal = ({ isOpen, onClose, currentRoom, onSuccess }) => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
               <button
                 onClick={onClose}
                 disabled={creating}
-                className="flex-1 border border-gray-300 text-gray-700 px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="w-full sm:flex-1 border border-gray-300 text-gray-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreatePayment}
                 disabled={creating}
-                className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:flex-1 bg-blue-600 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creating ? (
                   <span className="flex items-center justify-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Creating...
+                    <span className="hidden sm:inline">Creating...</span>
+                    <span className="sm:hidden">...</span>
                   </span>
                 ) : (
-                  `Pay ₱${paymentData.payment.totalAmount.toFixed(2)}`
+                  <>
+                    <span className="hidden sm:inline">Pay ₱{paymentData.payment.totalAmount.toFixed(2)}</span>
+                    <span className="sm:hidden">Pay Now</span>
+                  </>
                 )}
               </button>
             </div>
